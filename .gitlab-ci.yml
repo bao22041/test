@@ -1,0 +1,75 @@
+stages:
+  - build
+  - test
+  - deploy
+
+services:
+  - docker:dind
+
+backend_build:
+  stage: build
+  image: node:lts
+  script:
+    - cd backend
+    - npm install
+    - npm run build
+  only:
+    - master
+
+backend_test:
+  stage: test
+  image: node:lts
+  script:
+    - cd backend
+    # Bỏ npm test
+  only:
+    - master
+
+backend_deploy:
+  stage: deploy
+  image: docker:20.10
+  script:
+    - docker network create my-network || true
+    - cd backend
+    - docker build --no-cache -t belavu9999/ecommerce-be-node .
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - docker push belavu9999/ecommerce-be-node
+    - docker stop ecommerce-be || true
+    - docker rm ecommerce-be || true
+    - docker run -d -p 4000:4000 --name ecommerce-be --network my-network belavu9999/ecommerce-be-node
+  only:
+    - master
+
+frontend_build:
+  stage: build
+  image: node:lts
+  script:
+    - cd frontend
+    - npm install
+    - CI=false npm run build
+  only:
+    - master
+
+frontend_test:
+  stage: test
+  image: node:lts
+  script:
+    - cd frontend
+    # Bỏ npm test
+  only:
+    - master
+
+frontend_deploy:
+  stage: deploy
+  image: docker:20.10
+  script:
+    - docker network create my-network || true
+    - cd frontend
+    - docker build --no-cache -t belavu9999/ecommerce-fe .
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - docker push belavu9999/ecommerce-fe
+    - docker stop ecommerce-fe || true
+    - docker rm ecommerce-fe || true
+    - docker run -d -p 3000:3000 --name ecommerce-fe --network my-network belavu9999/ecommerce-fe
+  only:
+    - master
